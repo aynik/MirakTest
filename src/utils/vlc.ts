@@ -102,6 +102,10 @@ export const VLCLogFilter = (s: string) => {
     return {
       category: "audio_channel_updated",
     } as const
+  } else if (s.startsWith("psz_subtitle")) {
+    return {
+      category: "psz_subtitle"
+    } as const
   } else {
     return { category: "unknown" } as const
   }

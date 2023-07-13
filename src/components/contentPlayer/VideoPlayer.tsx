@@ -5,6 +5,7 @@ import dayjs from "dayjs"
 import React, { memo, useEffect, useMemo, useRef, useState } from "react"
 import { useDebounce } from "react-use"
 import { useRecoilState, useRecoilValue, useSetRecoilState } from "recoil"
+import { GoogleTranslator } from '@translate-tools/core/translators/GoogleTranslator';
 import pkg from "../../../package.json"
 import {
   contentPlayerAribSubtitleDataAtom,
@@ -42,6 +43,23 @@ import { useRefFromState } from "../../hooks/ref"
 import { getAribb24Configuration } from "../../utils/subtitle"
 import { VideoRenderer } from "../../utils/videoRenderer"
 import { VLCLogFilter } from "../../utils/vlc"
+
+const translator = new GoogleTranslator();
+
+const subtitleDiv = document.createElement("div")
+subtitleDiv.style.position = "absolute"
+subtitleDiv.style.bottom = "50px"
+subtitleDiv.style.left = "0"
+subtitleDiv.style.right = "0"
+subtitleDiv.style.margin = "auto"
+subtitleDiv.style.textAlign = "center"
+subtitleDiv.style.fontSize = "2.6vw"
+subtitleDiv.style.zIndex = "2147483647"
+subtitleDiv.style.background = "rgba(0,0,0,0.8)"
+subtitleDiv.style.color = "white"
+subtitleDiv.textContent = ""
+document.body.appendChild(subtitleDiv)
+let subtitleTimeout: number | null = null
 
 export const CoiledVideoPlayer: React.FC<{
   internalPlayingTimeRef: React.MutableRefObject<number>
@@ -358,6 +376,7 @@ export const CoiledVideoPlayer: React.FC<{
       internalPlayingTimeRef.current = time
     })
     let isCustomized = false
+    let subtitleText: RegExpMatchArray | null = null
     window.Preload.webchimera.onLogMessage((_level, message) => {
       const parsed = VLCLogFilter(message)
       switch (parsed.category) {
@@ -487,6 +506,25 @@ export const CoiledVideoPlayer: React.FC<{
           }
           break
         }
+        case "psz_subtitle":
+          subtitleText = message.match(/psz_subtitle \[(.*?)\]/);
+          if (subtitleText?.[1]) {
+            translator
+              .translate(subtitleText?.[1], 'ja', 'en')
+              .then((translate) => {
+                subtitleDiv.style.padding = "10px";
+                subtitleDiv.textContent = translate;
+                if (subtitleTimeout) {
+                  clearTimeout(subtitleTimeout)
+                }
+                subtitleTimeout = window.setTimeout(() => {
+                  subtitleDiv.style.padding = "0px";
+                  subtitleDiv.textContent = "";
+                }, 10000)
+              })
+              .catch(err => console.error(err));
+          }
+          break
         case "unknown":
           console.debug(message)
           break
